@@ -1,0 +1,12 @@
+<!-- GİRİŞ / KAYIT EKRANI -->
+<app-auth *ngIf="!authService.isLoggedIn()"></app-auth>
+
+<!-- ANA DASHBOARD EKRANI -->
+<div *ngIf="authService.isLoggedIn()" class="dashboard-container">
+  <app-sidebar (logoutClick)="logout()"></app-sidebar>
+
+  <main class="main-content">
+    <app-topbar></app-topbar>
+    <router-outlet></router-outlet>
+  </main>
+</div>

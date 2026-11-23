@@ -1,0 +1,256 @@
+<div class="board-header-section" style="padding-bottom: 12px;">
+  <!-- BAŞLIK VE GÖRÜNÜM SEKMELERİ -->
+  <div class="board-title-row" style="margin-bottom: 16px;">
+    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+      <h1>Görev Panosu <span>📝</span></h1>
+
+      <!-- KİŞİSEL / TAKIM SEÇİCİ -->
+      <div class="scope-switcher">
+        <button
+          class="scope-pill"
+          [class.active]="taskService.selectedScope() === 'personal'"
+          (click)="selectScope('personal')">
+          👤 Kişisel
+        </button>
+        <button
+          *ngFor="let team of teamService.myTeams()"
+          class="scope-pill"
+          [class.active]="taskService.selectedScope() === team.id"
+          (click)="selectScope(team.id)">
+          👥 {{ team.name }}
+        </button>
+      </div>
+    </div>
+
+    <!-- PANO / TAKVİM GEÇİŞİ -->
+    <div class="view-tabs">
+      <a href="javascript:void(0)" [class.active]="viewMode() === 'board'" (click)="viewMode.set('board')">
+        📋 Pano Görünümü
+      </a>
+      <a href="javascript:void(0)" [class.active]="viewMode() === 'calendar'" (click)="viewMode.set('calendar')">
+        📅 Takvim Görünümü
+      </a>
+    </div>
+  </div>
+
+  <!-- TAKIM SEÇİLİYSE ÜYE FİLTRE ÇUBUĞU -->
+  <div *ngIf="activeTeam() as team" class="member-filter-bar">
+    <span style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Üye Filtresi:</span>
+    <button
+      class="member-chip"
+      [class.active]="taskService.selectedMemberFilter() === 'ALL'"
+      (click)="taskService.selectedMemberFilter.set('ALL')">
+      Tümü
+    </button>
+    <button
+      *ngFor="let m of team.members"
+      class="member-chip"
+      [class.active]="taskService.selectedMemberFilter().toLowerCase() === m.name.toLowerCase()"
+      (click)="taskService.selectedMemberFilter.set(m.name)">
+      <span class="mini-avatar">{{ m.name.charAt(0).toUpperCase() }}</span>
+      {{ m.name }}
+    </button>
+  </div>
+
+  <!-- FİLTRELER VE GÖREV EKLEME / ATAMA -->
+  <div class="board-actions-row" style="flex-wrap: wrap; gap: 12px;">
+    <div class="filters">
+      <button class="filter-btn" [class.active-filter]="taskService.activeFilter() === null" (click)="taskService.setFilter(null)">Tümü</button>
+      <button class="filter-btn" [class.active-filter]="taskService.activeFilter() === 3" (click)="taskService.setFilter(3)">🔴 Yüksek</button>
+      <button class="filter-btn" [class.active-filter]="taskService.activeFilter() === 2" (click)="taskService.setFilter(2)">🟡 Orta</button>
+      <button class="filter-btn" [class.active-filter]="taskService.activeFilter() === 1" (click)="taskService.setFilter(1)">🟢 Düşük</button>
+    </div>
+
+    <!-- KİŞİSELDE HERKES, TAKIMDA SADECE KURUCU/YÖNETİCİ GÖREV ATAYABİLİR -->
+    <div *ngIf="canAssignTasks() && (!activeTeam() || assignableMembers().length > 0)" class="add-task-container" style="flex-wrap: wrap;">
+      <input type="text" [(ngModel)]="newTaskTitle" (keyup.enter)="addTask()" placeholder="Yeni görev başlığı..." class="input-field-small" />
+      <input type="date" [(ngModel)]="newTaskDueDate" [min]="todayDate" class="input-field-small" title="Son Teslim Tarihi" />
+
+      <!-- TAKIM SEÇİLİYSE KİME ATANACAK SEÇİMİ -->
+      <select *ngIf="activeTeam()" [ngModel]="newTaskAssignee()" (ngModelChange)="newTaskAssignee.set($event)" class="input-field-small select-small" title="Görev Atanacak Üye">
+        <option *ngFor="let m of assignableMembers()" [value]="m.name">👤 {{ m.name }}</option>
+      </select>
+
+      <select [(ngModel)]="newTaskPriority" class="input-field-small select-small">
+        <option [ngValue]="1">Düşük</option>
+        <option [ngValue]="2">Orta</option>
+        <option [ngValue]="3">Yüksek</option>
+      </select>
+      <button (click)="addTask()" class="btn-primary btn-small">+ {{ activeTeam() ? 'Ata' : 'Ekle' }}</button>
+    </div>
+
+    <div *ngIf="!canAssignTasks()" style="font-size: 13px; color: var(--text-muted); font-style: italic;">
+      ℹ️ Bu takımda görev atama yetkisi kurucu ve yöneticilerdedir.
+    </div>
+    <div *ngIf="canAssignTasks() && activeTeam() && assignableMembers().length === 0" role="status" style="font-size: 13px; color: var(--text-muted);">
+      Bu takımda görev atayabileceğiniz başka bir üye yok.
+    </div>
+  </div>
+  <div *ngIf="taskService.searchText() && taskService.filteredTasks().length === 0"
+       class="empty-state" role="status">
+    Aramanıza uyan görev bulunamadı.
+  </div>
+</div>
+
+<!-- ================= 1. PANO (KANBAN) GÖRÜNÜMÜ ================= -->
+<div *ngIf="viewMode() === 'board'" class="kanban-board">
+  <!-- YAPILACAKLAR -->
+  <div class="kanban-column">
+    <div class="column-header border-pink">
+      <h3>Yapılacaklar <span class="badge badge-pink">{{ taskService.todoTasks().length }}</span></h3>
+    </div>
+    <div class="kanban-cards">
+      <div *ngFor="let task of taskService.todoTasks()" class="k-card">
+        <div class="k-card-header">
+          <h4>{{ task.title }}</h4>
+          <button *ngIf="canDeleteTask(task)" (click)="taskService.deleteTask(task.id)" class="delete-btn">✕</button>
+        </div>
+        <div class="k-card-tags" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+          <span class="tag" [ngClass]="getPriorityClass(task.priority)">{{ getPriorityLabel(task.priority) }}</span>
+          <span *ngIf="activeTeam() && task.assignedTo" class="assignee-badge">
+            <span class="mini-avatar">{{ task.assignedTo.charAt(0).toUpperCase() }}</span>
+            {{ task.assignedTo }}
+          </span>
+        </div>
+        <div class="k-card-footer">
+          <label class="custom-checkbox">
+            <input type="checkbox" [checked]="task.isCompleted" [disabled]="!taskService.canComplete(task)" (change)="taskService.toggleComplete(task)">
+            <span class="checkmark"></span> Tamamla
+          </label>
+          <span *ngIf="task.dueDate" class="card-date">📅 {{ task.dueDate | date:'dd.MM.yyyy' }}</span>
+        </div>
+      </div>
+      <div *ngIf="taskService.todoTasks().length === 0" class="empty-state">Bekleyen görev yok.</div>
+    </div>
+  </div>
+
+  <!-- TAMAMLANAMADI -->
+  <div class="kanban-column">
+    <div class="column-header border-red">
+      <h3>Tamamlanamadı <span class="badge badge-red">{{ taskService.failedTasks().length }}</span></h3>
+    </div>
+    <div class="kanban-cards">
+      <div *ngFor="let task of taskService.failedTasks()" class="k-card card-failed">
+        <div class="k-card-header">
+          <h4>{{ task.title }}</h4>
+          <button *ngIf="canDeleteTask(task)" (click)="taskService.deleteTask(task.id)" class="delete-btn">✕</button>
+        </div>
+        <div class="k-card-tags" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+          <span class="tag tag-failed">Tamamlanamadı</span>
+          <span *ngIf="activeTeam() && task.assignedTo" class="assignee-badge">
+            <span class="mini-avatar">{{ task.assignedTo.charAt(0).toUpperCase() }}</span>
+            {{ task.assignedTo }}
+          </span>
+        </div>
+        <div class="k-card-footer">
+          <label class="custom-checkbox">
+            <input type="checkbox" [checked]="task.isCompleted" [disabled]="!taskService.canComplete(task)" (change)="taskService.toggleComplete(task)">
+            <span class="checkmark"></span> Tamamla
+          </label>
+          <span *ngIf="task.dueDate" class="card-date" style="color: #de350b; font-weight: 700;">
+            ⚠️ {{ task.dueDate | date:'dd.MM.yyyy' }}
+          </span>
+        </div>
+      </div>
+      <div *ngIf="taskService.failedTasks().length === 0" class="empty-state">Süresi geçmiş görev yok.</div>
+    </div>
+  </div>
+
+  <!-- TAMAMLANANLAR -->
+  <div class="kanban-column">
+    <div class="column-header border-green">
+      <h3>Tamamlananlar <span class="badge badge-green">{{ taskService.doneTasks().length }}</span></h3>
+    </div>
+    <div class="kanban-cards">
+      <div *ngFor="let task of taskService.doneTasks()" class="k-card card-done">
+        <div class="k-card-header">
+          <h4 style="text-decoration: line-through; color: #a0aec0;">{{ task.title }}</h4>
+          <button *ngIf="canDeleteTask(task)" (click)="taskService.deleteTask(task.id)" class="delete-btn">✕</button>
+        </div>
+        <div class="k-card-tags" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+          <span class="tag tag-done">Tamamlandı</span>
+          <span *ngIf="activeTeam() && task.assignedTo" class="assignee-badge">
+            <span class="mini-avatar">{{ task.assignedTo.charAt(0).toUpperCase() }}</span>
+            {{ task.assignedTo }}
+          </span>
+        </div>
+        <div class="k-card-footer">
+          <label class="custom-checkbox">
+            <input type="checkbox" [checked]="task.isCompleted" [disabled]="!taskService.canComplete(task)" (change)="taskService.toggleComplete(task)">
+            <span class="checkmark checked"></span> Geri Al
+          </label>
+          <span *ngIf="task.dueDate" class="card-date">📅 {{ task.dueDate | date:'dd.MM.yyyy' }}</span>
+        </div>
+      </div>
+      <div *ngIf="taskService.doneTasks().length === 0" class="empty-state">Henüz tamamlanan görev yok.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 2. MODERN TAKVİM GÖRÜNÜMÜ ================= -->
+<div *ngIf="viewMode() === 'calendar'" class="calendar-wrapper">
+  <div class="calendar-toolbar">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <h2 class="calendar-month-title">{{ currentMonthLabel() }}</h2>
+      <button (click)="goToToday()" class="filter-btn">Bugün</button>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <div class="calendar-legend">
+        <span><i class="legend-dot" style="background: var(--green);"></i> Tamamlandı</span>
+        <span><i class="legend-dot" style="background: #de350b;"></i> Süresi Geçti / Yüksek</span>
+        <span><i class="legend-dot" style="background: var(--orange);"></i> Orta</span>
+        <span><i class="legend-dot" style="background: var(--primary);"></i> Düşük</span>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <button (click)="changeMonth(-1)" class="filter-btn">◀</button>
+        <button (click)="changeMonth(1)" class="filter-btn">▶</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="calendar-grid-header">
+    <div *ngFor="let d of weekDays">{{ d }}</div>
+  </div>
+
+  <div class="calendar-grid">
+    <div *ngFor="let cell of calendarDays()"
+         class="calendar-cell"
+         [class.other-month]="!cell.isCurrentMonth"
+         [class.today-cell]="cell.isToday">
+      <div class="cell-header">
+        <span class="day-num" [class.today-badge]="cell.isToday">{{ cell.dayNumber }}</span>
+        <span *ngIf="cell.tasks.length > 0" class="cell-count">{{ cell.tasks.length }}</span>
+      </div>
+
+      <div class="cell-tasks">
+        <div *ngFor="let task of cell.tasks"
+             class="cal-task-pill"
+             [ngClass]="getCalendarTaskClass(task)"
+             (click)="taskService.toggleComplete(task)"
+             [style.cursor]="taskService.canComplete(task) ? 'pointer' : 'default'"
+             [title]="(task.assignedTo ? task.assignedTo + ' - ' : '') + task.title">
+          <span *ngIf="task.assignedTo" class="cal-avatar">{{ task.assignedTo.charAt(0).toUpperCase() }}</span>
+          <span class="cal-task-title" [style.text-decoration]="task.isCompleted ? 'line-through' : 'none'">
+            {{ task.title }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TARİH BELİRTİLMEMİŞ GÖREVLER -->
+  <div *ngIf="undatedTasks().length > 0" class="undated-bar">
+    <strong style="font-size: 13px; color: var(--text-muted);">Tarihsiz Görevler:</strong>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <div *ngFor="let task of undatedTasks()"
+           class="cal-task-pill"
+           [ngClass]="getCalendarTaskClass(task)"
+           (click)="taskService.toggleComplete(task)"
+           [style.cursor]="taskService.canComplete(task) ? 'pointer' : 'default'">
+        <span *ngIf="task.assignedTo" class="cal-avatar">{{ task.assignedTo.charAt(0).toUpperCase() }}</span>
+        <span>{{ task.title }}</span>
+      </div>
+    </div>
+  </div>
+</div>

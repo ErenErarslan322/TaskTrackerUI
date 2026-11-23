@@ -1,0 +1,70 @@
+<div class="page-content" style="display: flex; gap: 20px; height: calc(100vh - 80px);">
+
+  <!-- SOL: TAKIM ÜYELERİ LİSTESİ (OKUNMAMIŞLAR EN ÜSTTE) -->
+  <div style="width: 280px; background: white; border-radius: 12px; border: 1px solid var(--border-color); padding: 16px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto;">
+    <h3 style="color: var(--text-main); font-size: 16px; margin-bottom: 8px;">Sohbetler</h3>
+
+    <div *ngIf="sortedMembers().length === 0" role="status" style="color: var(--text-muted); font-size: 13px;">
+      {{ searchQuery() ? 'Aramanıza uyan sohbet bulunamadı.' : 'Mesajlaşmak için önce Üyeler sekmesinden takım arkadaşı ekleyin.' }}
+    </div>
+
+    <div *ngFor="let m of sortedMembers()"
+         (click)="selectUser(m.name)"
+         [style.background]="selectedUser() === m.name ? '#e6effc' : (signalrService.getUnreadCount(m.name) > 0 ? '#fff5f7' : 'transparent')"
+         [style.border]="signalrService.getUnreadCount(m.name) > 0 ? '1px solid #ffd6de' : '1px solid transparent'"
+         style="display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+      <div class="avatar" style="position: relative; width: 36px; height: 36px; flex-shrink: 0;">
+        {{ m.name.charAt(0).toUpperCase() }}
+        <div class="status-indicator" [style.background]="teamService.getStatusColor(m.status)"></div>
+      </div>
+
+      <div style="flex: 1; min-width: 0;">
+        <strong style="font-size: 14px; color: var(--text-main);">{{ m.name }}</strong><br>
+        <small [style.color]="teamService.getStatusColor(m.status)" style="font-size: 11px; font-weight: 600;">{{ m.status }}</small>
+      </div>
+
+      <!-- OKUNMAMIŞ MESAJ BELİRTECİ -->
+      <span *ngIf="signalrService.getUnreadCount(m.name) > 0" class="unread-badge">
+        {{ signalrService.getUnreadCount(m.name) }}
+      </span>
+    </div>
+  </div>
+
+  <!-- SAĞ: SOHBET PENCERESİ -->
+  <div style="flex: 1; background: white; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; overflow: hidden;">
+
+    <ng-container *ngIf="selectedUser(); else noSelection">
+      <div style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); font-weight: bold; color: var(--text-main);">
+        💬 {{ selectedUser() }} ile Sohbet
+      </div>
+
+      <div style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #fafbfc;">
+        <div *ngIf="searchQuery() && currentChatMessages().length === 0" class="empty-state" role="status">
+          Bu sohbette aramanıza uyan mesaj bulunamadı.
+        </div>
+        <div *ngFor="let msg of currentChatMessages()"
+             [style.align-self]="msg.sender.toLowerCase() === currentUserLower() ? 'flex-end' : 'flex-start'"
+             [style.background]="msg.sender.toLowerCase() === currentUserLower() ? 'var(--primary)' : 'white'"
+             [style.color]="msg.sender.toLowerCase() === currentUserLower() ? 'white' : 'var(--text-main)'"
+             style="max-width: 65%; padding: 10px 14px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid var(--border-color);">
+          <div style="font-size: 14px;">{{ msg.text }}</div>
+          <div style="font-size: 10px; opacity: 0.75; text-align: right; margin-top: 4px;">{{ msg.timestamp }}</div>
+        </div>
+      </div>
+
+      <div style="padding: 16px; border-top: 1px solid var(--border-color); display: flex; gap: 10px; background: white;">
+        <input type="text" [(ngModel)]="messageText" (keyup.enter)="send()" placeholder="Mesajınızı yazın..." class="input-field" style="flex: 1; padding: 10px 14px;" />
+        <button (click)="send()" class="btn-primary" style="padding: 0 24px; border-radius: 6px;">Gönder</button>
+      </div>
+    </ng-container>
+
+    <ng-template #noSelection>
+      <div class="empty-state-page" style="height: 100%;">
+        <div class="icon-large">💬</div>
+        <h2>Sohbet Başlatın</h2>
+        <p>Mesajlaşmak istediğiniz takım arkadaşınızı sol menüden seçin.</p>
+      </div>
+    </ng-template>
+
+  </div>
+</div>

@@ -1,0 +1,139 @@
+<div class="page-content">
+
+  <!-- ÜST BÖLÜM: TAKIM OLUŞTURMA VE TAKIM SEÇİCİ -->
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px;">
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <h2 style="color: var(--text-main); margin: 0;">Takımlarım</h2>
+
+      <div *ngIf="teamService.myTeams().length > 0" style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button
+          *ngFor="let team of teamService.myTeams()"
+          (click)="teamService.selectTeam(team.id)"
+          class="filter-btn"
+          [class.active-filter]="teamService.selectedTeam()?.id === team.id"
+          style="border-radius: 20px; padding: 6px 14px;">
+          {{ team.name }} ({{ team.members.length }})
+          <span *ngIf="isOwnerOf(team.owner)" title="Kurucu">👑</span>
+        </button>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 8px;">
+      <input
+        type="text"
+        [(ngModel)]="newTeamName"
+        (keyup.enter)="createTeam()"
+        placeholder="Yeni takım adı..."
+        class="input-field-small"
+        style="width: 190px;">
+      <button (click)="createTeam()" class="btn-primary btn-small">+ Takım Kur</button>
+    </div>
+  </div>
+
+  <!-- HİÇ TAKIM YOKSA -->
+  <div *ngIf="!teamService.selectedTeam()" class="empty-state-page" style="height: 55%;">
+    <div class="icon-large">👥</div>
+    <h2>Henüz Bir Takımda Değilsiniz</h2>
+    <p>Yukarıdan kendi takımınızı kurup ekip arkadaşlarınızı davet edebilir veya başka bir kurucunun sizi eklemesini bekleyebilirsiniz.</p>
+  </div>
+
+  <!-- SEÇİLİ TAKIMIN DETAYI VE ÜYELERİ -->
+  <ng-container *ngIf="teamService.selectedTeam() as currentTeam">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding: 16px 20px; background: white; border-radius: 12px; border: 1px solid var(--border-color);">
+      <div>
+        <h3 style="margin: 0; color: var(--text-main); font-size: 18px;">
+          {{ currentTeam.name }} — Üyeler ({{ currentTeam.members.length }})
+        </h3>
+        <small style="color: var(--text-muted);">
+          Kurucu: <strong>{{ currentTeam.owner }}</strong>
+          <span *ngIf="!teamService.canManageSelectedTeam()"> · Kurucu ve yöneticiler üye ekleyebilir.</span>
+          <span *ngIf="!teamService.isSelectedTeamOwner()"> · Yalnızca kurucu üye çıkarabilir.</span>
+        </small>
+      </div>
+
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <!-- KURUCU VE YETKİLİ YÖNETİCİ: DAVET ET -->
+        <ng-container *ngIf="teamService.canManageSelectedTeam()">
+          <input
+            type="email"
+            [(ngModel)]="newMemberEmail"
+            (keyup.enter)="inviteMember()"
+            placeholder="Kayıtlı üye e-postası..."
+            class="input-field-small"
+            style="width: 230px;">
+          <button (click)="inviteMember()" class="btn-primary btn-small">+ Davet Et</button>
+        </ng-container>
+
+        <!-- SADECE KURUCU: TAKIMI SİL -->
+        <button
+          *ngIf="teamService.isSelectedTeamOwner()"
+          (click)="teamService.deleteTeam(currentTeam.id)"
+          class="filter-btn text-danger"
+          style="border-color: #ffbdad;">
+          Takımı Sil
+        </button>
+
+        <!-- KURUCU DEĞİLSE: TAKIMDAN AYRIL -->
+        <button
+          *ngIf="!teamService.isSelectedTeamOwner()"
+          (click)="teamService.leaveTeam(currentTeam.id)"
+          class="filter-btn text-danger"
+          style="border-color: #ffbdad;">
+          Takımdan Ayrıl
+        </button>
+      </div>
+    </div>
+
+    <!-- ÜYE LİSTESİ -->
+    <div class="member-list">
+      <div *ngIf="filteredMembers().length === 0" class="empty-state" role="status">
+        Aramanıza uyan üye bulunamadı.
+      </div>
+      <div *ngFor="let member of filteredMembers()" class="member-item">
+        <div
+          class="avatar"
+          [style.background]="isCurrentUser(member.name) ? 'var(--primary)' : '#764ba2'"
+          style="width: 45px; height: 45px; font-size: 18px; position: relative;">
+          {{ member.name.charAt(0).toUpperCase() }}
+          <div class="status-indicator" [style.background]="teamService.getStatusColor(member.status)"></div>
+        </div>
+
+        <div>
+          <strong style="font-size: 16px; color: var(--text-main);">
+            {{ member.name }}
+            <span *ngIf="isCurrentUser(member.name)">(Sen)</span>
+          </strong>
+          <small *ngIf="member.role" style="display: block; color: var(--text-muted);">
+            {{ member.role }}
+          </small>
+        </div>
+
+        <div
+          [style.color]="teamService.getStatusColor(member.status)"
+          style="margin-left: auto; font-size: 13px; font-weight: bold;">
+          {{ member.status }}
+        </div>
+
+        <!-- SADECE KURUCU: YETKİ VER / YETKİYİ AL -->
+        <button
+          *ngIf="teamService.isSelectedTeamOwner() && member.name.toLowerCase() !== currentTeam.owner.toLowerCase()"
+          (click)="teamService.toggleAdminRole(member.name)"
+          class="filter-btn"
+          style="margin-left: 12px; font-size: 12px; padding: 5px 10px;">
+          {{ member.role === 'Yönetici' ? 'Yetkiyi Al' : '⚡ Yetki Ver' }}
+        </button>
+
+        <!-- SADECE KURUCU: ÜYEYİ ÇIKAR -->
+        <button
+          *ngIf="teamService.isSelectedTeamOwner() && !isCurrentUser(member.name)"
+          (click)="teamService.removeMember(member.name)"
+          class="delete-btn"
+          title="Takımdan Çıkar"
+          style="margin-left: 15px; font-size: 18px;">
+          ✕
+        </button>
+      </div>
+    </div>
+  </ng-container>
+
+</div>
