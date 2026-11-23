@@ -1,14 +1,57 @@
-# TaskTrackerUI
+# TaskTracker
 
-## Development server
+TaskTracker is a workspace for managing personal and team tasks. It includes task boards and calendars, team roles, real-time messaging, presence, and notifications.
 
-To start a local development server, run:
+- The Angular frontend lives in `src/`.
+- The ASP.NET Core API, Entity Framework Core migrations, and Visual Studio solution live in `api/`.
+- The API uses SQL Server and SignalR. Frontend tests live in `src/tests/`.
 
-```bash
-ng serve -o
+## Run locally
+
+Install the .NET 10 SDK, SQL Server or SQL Server LocalDB, and Node.js 24.15 or later in the 24.x line. The commands below use PowerShell from the repository root.
+
+### 1. Configure and start the API
+
+The example uses SQL Server LocalDB with Windows authentication. For another SQL Server instance, set `$connection` to your own connection string. User Secrets keeps the database connection and signing key outside the repository.
+
+```powershell
+$apiProject = './api/TaskTrackerAPI/TaskTrackerAPI.csproj'
+$connection = 'Server=(localdb)\MSSQLLocalDB;Database=TaskTracker;Trusted_Connection=True;TrustServerCertificate=True'
+dotnet user-secrets set --project $apiProject 'ConnectionStrings:DefaultConnection' $connection
+
+$keyBytes = New-Object byte[] 32
+$keyGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+try {
+    $keyGenerator.GetBytes($keyBytes)
+    @{ 'Jwt:SigningKey' = [Convert]::ToBase64String($keyBytes) } |
+        ConvertTo-Json -Compress |
+        dotnet user-secrets set --project $apiProject
+} finally {
+    $keyGenerator.Dispose()
+    [Array]::Clear($keyBytes, 0, $keyBytes.Length)
+}
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Install the Entity Framework Core CLI if it is missing, then apply the migrations and start the API.
+
+```powershell
+dotnet tool install --global dotnet-ef --version 10.0.0
+dotnet ef database update --project $apiProject -- --environment Development
+dotnet run --project $apiProject --launch-profile http
+```
+
+The API listens at `http://localhost:5032`.
+
+### 2. Start the frontend
+
+Open a second terminal at the repository root.
+
+```powershell
+npm ci
+npm start
+```
+
+Open `http://localhost:4200` and create an account.
 
 ## Frontend architecture
 
@@ -16,71 +59,14 @@ Once the server is running, open your browser and navigate to `http://localhost:
 
 `src/app/core` contains search, the shared SignalR connection, and the API and hub addresses. `src/app/layout` contains the sidebar and top bar. Routes live in `src/app/app.routes.ts`.
 
-When a user adds a task, `TasksComponent` calls `TaskService`. The service builds the payload using the selected scope, calls `TaskApi`, and refreshes the task list after saving. Tests live under `src/tests`, with unit tests grouped by component and service and integration tests grouped by workflow.
+When a user adds a task, `TasksComponent` calls `TaskService`. The service builds the payload using the selected scope, calls `TaskApi`, and refreshes the task list after saving.
 
-## API JWT configuration
-
-The sibling `TaskTrackerAPI` project requires a Base64-encoded JWT signing key that decodes to at least 32 bytes. In PowerShell, run this from the UI project directory to generate and store a development key:
+## Build and test
 
 ```powershell
-$jwtProject = '../TaskTrackerAPI/TaskTrackerAPI/TaskTrackerAPI.csproj'
-$jwtBytes = New-Object byte[] 32
-$jwtGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-try {
-    $jwtGenerator.GetBytes($jwtBytes)
-    @{ 'Jwt:SigningKey' = [Convert]::ToBase64String($jwtBytes) } |
-        ConvertTo-Json -Compress |
-        dotnet user-secrets set --project $jwtProject
-} finally {
-    $jwtGenerator.Dispose()
-    [Array]::Clear($jwtBytes, 0, $jwtBytes.Length)
-}
+dotnet build ./api/TaskTrackerAPI.slnx
+npm run build
+npm test -- --watch=false
 ```
 
-Run the API with `ASPNETCORE_ENVIRONMENT=Development` to load User Secrets. The local Visual Studio launch profiles set this value. For production, inject a separately generated signing key through the hosting platform's secret configuration as `Jwt__SigningKey`. Restart the API after rotating the key. Users must sign in again to receive new tokens.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+The frontend tests use simulated HTTP and SignalR connections, so they can run without starting the API or SQL Server. See [the test guide](src/tests/README.md) for the suite layout.

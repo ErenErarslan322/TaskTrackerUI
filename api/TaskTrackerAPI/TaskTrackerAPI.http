@@ -1,0 +1,34 @@
+@TaskTrackerAPI_HostAddress = http://localhost:5032
+
+### 1. Tüm Görevleri Listele (GET)
+GET {{TaskTrackerAPI_HostAddress}}/api/tasks
+Accept: application/json
+
+### 2. Yeni Görev Ekle (POST)
+POST {{TaskTrackerAPI_HostAddress}}/api/tasks
+Content-Type: application/json
+
+{
+  "id": "2",
+  "title": "İkinci görevim",
+  "priority": 2,
+  "isCompleted": false,
+  "userId": 1
+}
+
+### 3. Görevi Güncelle (PUT)
+# Not: Sondaki /1 kısmı güncellenecek görevin ID'sini temsil eder.
+PUT {{TaskTrackerAPI_HostAddress}}/api/tasks/1
+Content-Type: application/json
+
+{
+  "id": "1",
+  "title": "İlk görevim (Güncellendi)",
+  "priority": 5,
+  "isCompleted": true,
+  "userId": 1
+}
+
+### 4. Görevi Sil (DELETE)
+# Not: Sondaki /1 kısmı silinecek görevin ID'sini temsil eder.
+DELETE {{TaskTrackerAPI_HostAddress}}/api/tasks/1
