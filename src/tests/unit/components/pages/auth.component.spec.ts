@@ -31,6 +31,7 @@ describe('AuthComponent', () => {
   });
 
   it('switches the form to registration and requires the email, username and password', () => {
+    expect(root.querySelectorAll('.logo .logo-icon[aria-hidden="true"]')).toHaveLength(1);
     const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
     root.querySelector<HTMLElement>('.auth-switch a')!.click();
     fixture.detectChanges();

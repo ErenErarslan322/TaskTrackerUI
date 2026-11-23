@@ -11,7 +11,7 @@ import { AuthService } from './auth.service';
     <div class="auth-wrapper">
       <div class="auth-card">
         <div class="logo">
-          <div class="logo-icon"></div>
+          <span class="logo-icon" aria-hidden="true"></span>
           <h2>TaskTracker<span>+</span></h2>
         </div>
         <p class="auth-subtitle">{{ isLoginMode ? 'Çalışma alanınıza giriş yapın' : 'Yeni bir hesap oluşturun' }}</p>

@@ -10,7 +10,7 @@ import { SignalrService } from '../core/realtime/signalr.service';
   template: `
     <aside class="sidebar" style="height: 100%;">
       <div class="logo-container">
-        <img class="logo-icon" src="TT.png" alt="" />
+        <span class="logo-icon" aria-hidden="true"></span>
         <h2>TaskTracker<span>+</span></h2>
       </div>
       

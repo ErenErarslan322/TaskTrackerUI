@@ -17,7 +17,7 @@ it('renders one logo, displays unread chats and emits logout', () => {
   fixture.componentInstance.logoutClick.subscribe(logout);
   fixture.detectChanges();
   expect(root.querySelectorAll('.logo-container .logo-icon')).toHaveLength(1);
-  expect(root.querySelector('img.logo-icon')?.getAttribute('src')).toBe('TT.png');
+  expect(root.querySelector('.logo-icon')?.getAttribute('aria-hidden')).toBe('true');
   expect(root.querySelector('a[href="/messages"]')).not.toBeNull();
   expect(root.querySelector('.unread-badge')).toBeNull();
 

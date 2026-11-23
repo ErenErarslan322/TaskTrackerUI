@@ -75,10 +75,12 @@ h1, h2, h3, h4, p { margin: 0; }
 
 .sidebar { width: 260px; background: var(--sidebar-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 24px 0; height: 100%; }
 .logo-container { display: flex; align-items: center; gap: 10px; padding: 0 24px 30px; }
-.logo-icon { width: 24px; height: 24px; background: var(--primary); border-radius: 6px; }
-img.logo-icon {
-  background: transparent;
-  object-fit: contain;
+.logo-icon {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  background: url('../public/TT.png') center / contain no-repeat;
+  border-radius: 6px;
 }
 .logo-container h2 { font-size: 20px; color: var(--text-main); font-weight: 700; }
 .logo-container span { color: var(--primary); }
