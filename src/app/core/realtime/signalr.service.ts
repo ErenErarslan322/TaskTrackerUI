@@ -9,7 +9,7 @@ import { ProfileStatus } from '../../features/teams/member.model';
 import { NotificationEvent, NotificationItem } from '../../features/notifications/notification.model';
 import { NotificationService } from '../../features/notifications/notification.service';
 
-type StoredChatMessage = ChatMessage & Required<Pick<ChatMessage, 'id' | 'createdAt'>>;
+type StoredChatMessage = ChatMessage & Required<Pick<ChatMessage, 'id' | 'createdAt' | 'notificationRead'>>;
 
 @Injectable({
   providedIn: 'root'
@@ -28,7 +28,7 @@ export class SignalrService {
     if (!user) return [];
 
     return this.messages().filter(message =>
-      this.isIncomingMessage(message, user) && !(message.notificationRead ?? message.isRead !== false)
+      this.isIncomingMessage(message, user) && !message.notificationRead
     ).map(message => ({
       id: message.id,
       kind: 'message',
@@ -161,19 +161,29 @@ export class SignalrService {
     const createdAt = typeof message.createdAt === 'number' && Number.isFinite(message.createdAt)
       ? message.createdAt
       : now;
-    return { ...message, id, createdAt };
+    const notificationRead = message.notificationRead ?? (message.isRead !== false);
+    return { ...message, id, createdAt, notificationRead };
   }
 
   private refreshMessages() {
-    const valid = this.loadValidMessages();
-    this.messages.set(valid);
-    this.scheduleExpiry(valid);
+    this.updateMessages(this.loadValidMessages());
   }
 
   private saveMessages(messages: StoredChatMessage[]) {
     localStorage.setItem('chatMessages', JSON.stringify(messages));
+    this.updateMessages(messages);
+  }
+
+  private updateMessages(messages: StoredChatMessage[]) {
+    const previousIds = new Set(this.messages().map(message => message.id));
+    const user = this.activeUser();
     this.messages.set(messages);
     this.scheduleExpiry(messages);
+    if (user && messages.some(message =>
+      !previousIds.has(message.id) && !message.notificationRead && this.isIncomingMessage(message, user)
+    )) {
+      this.notifications.ring();
+    }
   }
 
   private scheduleExpiry(messages: StoredChatMessage[]) {
@@ -246,9 +256,7 @@ export class SignalrService {
       const isIncoming = this.isIncomingMessage(msg, activeUser);
 
       // Alıcı şu an bu sohbetin içindeyse anında okundu say, değilse okunmamış (false) yap
-      const isViewingThisChat =
-        msg.receiver.toLowerCase() === activeUser &&
-        msg.sender.toLowerCase() === openChat;
+      const isViewingThisChat = isIncoming && msg.sender.toLowerCase() === openChat;
 
       const now = Date.now();
       const message = this.normalizeMessage(msg, now);
@@ -256,22 +264,18 @@ export class SignalrService {
 
       const messages = this.loadValidMessages();
       if (messages.some(existing => existing.id === message.id)) {
-        this.messages.set(messages);
-        this.scheduleExpiry(messages);
+        this.updateMessages(messages);
+        if (isViewingThisChat) this.markAsRead(msg.sender);
         return;
       }
 
       const msgWithMeta = {
         ...message,
         isRead: isViewingThisChat,
-        notificationRead: !isIncoming
+        notificationRead: msg.sender.toLowerCase() === msg.receiver.toLowerCase()
       };
 
       this.saveMessages([...messages, msgWithMeta]);
-
-      if (isIncoming) {
-        this.notifications.ring();
-      }
     });
 
     connection.start().then(registerUser).catch(err => console.error('SignalR Bağlantı Hatası:', err));

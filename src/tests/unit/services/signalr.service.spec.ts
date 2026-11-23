@@ -114,6 +114,29 @@ describe('SignalrService', () => {
     expect(service.messages().map(item => item.id)).toEqual(['other-tab']);
   });
 
+  it('keeps the recipient notification pending when the sender stores the message first', () => {
+    const service = TestBed.inject(SignalrService);
+    service.startConnection('test-user');
+    hub.emit('ReceiveMessage', message({ sender: 'test-user', receiver: 'test-member' }));
+
+    expect(service.messages()[0].notificationRead).toBe(false);
+    expect(service.messageNotifications()).toEqual([]);
+    expect(inbox.ring).not.toHaveBeenCalled();
+
+    auth.currentUser.set('test-member');
+    expect(service.totalUnreadCount()).toBe(1);
+    expect(service.messageNotifications().map(item => item.id)).toEqual(['test-message']);
+  });
+
+  it('keeps a legacy message in the bell after opening its conversation', () => {
+    localStorage.setItem('chatMessages', JSON.stringify([message()]));
+    const service = TestBed.inject(SignalrService);
+
+    service.markAsRead('test-member');
+    expect(service.totalUnreadCount()).toBe(0);
+    expect(service.messageNotifications().map(item => item.id)).toEqual(['test-message']);
+  });
+
   it('sends valid commands while connected and closes the active conversation on logout', async () => {
     const service = TestBed.inject(SignalrService);
     service.startConnection('test-user');

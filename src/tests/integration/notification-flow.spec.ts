@@ -115,6 +115,28 @@ it('loads missed notifications, removes viewed entries, and expires chat message
       dismiss.flush(null);
       bell.click();
     }
+
+    const sharedMessage = { ...message, id: 'shared-message', createdAt: Date.now(), notificationRead: false };
+    localStorage.setItem('chatMessages', JSON.stringify([sharedMessage]));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'chatMessages' }));
+    fixture.detectChanges();
+    expect(signalr.totalUnreadCount()).toBe(1);
+    expect(dot()).not.toBeNull();
+    const ringingBell = root.querySelector('.notification-bell-icon.ringing');
+    expect(ringingBell).not.toBeNull();
+
+    hub.emit('ReceiveMessage', sharedMessage);
+    fixture.detectChanges();
+    expect(root.querySelector('.notification-bell-icon.ringing')).toBe(ringingBell);
+    signalr.markAsRead('Deniz');
+    fixture.detectChanges();
+    expect(signalr.totalUnreadCount()).toBe(0);
+    expect(dot()).not.toBeNull();
+
+    bell.click();
+    fixture.detectChanges();
+    expect(root.querySelector('.notification-list')?.textContent).toContain('Deniz sana mesaj gönderdi.');
+    expect(dot()).toBeNull();
     http.verify();
   } finally {
     hub.restore();
