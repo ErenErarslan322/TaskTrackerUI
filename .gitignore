@@ -43,21 +43,7 @@ __screenshots__/
 .DS_Store
 Thumbs.db
 
-# ASP.NET Core and local database files
-.vs/
-[Bb]in/
-[Oo]bj/
-TestResults/
-*.user
-*.suo
-*.publishsettings
+# Local configuration
 .env
 .env.*
 !.env.example
-secrets.json
-appsettings.Local.json
-*.pfx
-*.p12
-*.mdf
-*.ldf
-*.bak
